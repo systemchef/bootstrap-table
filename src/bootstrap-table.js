@@ -5,9 +5,9 @@
  */
 
 !function ($) {
+
     'use strict';
 
-    var cellHeight = 37; // update css if changed
     // TOOLS DEFINITION
     // ======================
 
@@ -54,28 +54,24 @@
         return index;
     };
 
-    var cachedWidth = null;
     var getScrollBarWidth = function () {
-        if (cachedWidth === null) {
-            var inner = $('<p/>').addClass('fixed-table-scroll-inner'),
-                outer = $('<div/>').addClass('fixed-table-scroll-outer'),
-                w1, w2;
+        var inner = $('<p/>').addClass('fixed-table-scroll-inner'),
+            outer = $('<div/>').addClass('fixed-table-scroll-outer'),
+            w1, w2;
 
-            outer.append(inner);
-            $('body').append(outer);
+        outer.append(inner);
+        $('body').append(outer);
 
-            w1 = inner[0].offsetWidth;
-            outer.css('overflow', 'scroll');
-            w2 = inner[0].offsetWidth;
+        w1 = inner[0].offsetWidth;
+        outer.css('overflow', 'scroll');
+        w2 = inner[0].offsetWidth;
 
-            if (w1 === w2) {
-                w2 = outer[0].clientWidth;
-            }
-
-            outer.remove();
-            cachedWidth = w1 - w2;
+        if (w1 === w2) {
+            w2 = outer[0].clientWidth;
         }
-        return cachedWidth;
+
+        outer.remove();
+        return w1 - w2;
     };
 
     var calculateObjectValue = function (self, name, args, defaultValue) {
@@ -121,7 +117,6 @@
         this.$el = $(el);
         this.$el_ = this.$el.clone();
         this.timeoutId_ = 0;
-        this.timeoutFooter_ = 0;
 
         this.init();
     };
@@ -154,15 +149,10 @@
         pageNumber: 1,
         pageSize: 10,
         pageList: [10, 25, 50, 100],
-        paginationHAlign: 'right', //right, left
-        paginationVAlign: 'bottom', //bottom, top
-        paginationDetailHAlign: 'left', //right, left
-        paginationDetailVAlign: 'bottom', //bottom, top
         search: false,
         searchAlign: 'right',
         selectItemName: 'btSelectItem',
         showHeader: true,
-        showFooter: false,
         showColumns: false,
         showPaginationSwitch: false,
         showRefresh: false,
@@ -181,8 +171,6 @@
         sortable: true,
         maintainSelected: false,
         searchTimeOut: 500,
-        keyEvents: false,
-        searchText: '',
         iconSize: undefined,
         iconsPrefix: 'glyphicon', // glyphicon of fa (font awesome)
         icons: {
@@ -261,7 +249,8 @@
             return sprintf('%s records per page', pageNumber);
         },
         formatShowingRows: function (pageFrom, pageTo, totalRows) {
-            return sprintf('Showing %s to %s of %s rows', pageFrom, pageTo, totalRows);
+            //return sprintf('Showing %s to %s of %s rows', pageFrom, pageTo, totalRows);
+            return sprintf('%s rows', totalRows);
         },
         formatSearch: function () {
             return 'Search';
@@ -280,9 +269,6 @@
         },
         formatColumns: function () {
             return 'Columns';
-        },
-        formatAllRows: function () {
-            return 'All';
         }
     };
 
@@ -297,7 +283,6 @@
         'class': undefined,
         align: undefined, // left, right, center
         halign: undefined, // left, right, center
-        falign: undefined, // left, right, center
         valign: undefined, // top, middle, bottom
         width: undefined,
         sortable: false,
@@ -306,12 +291,10 @@
         switchable: true,
         clickToSelect: true,
         formatter: undefined,
-        footerFormatter: undefined,
         events: undefined,
         sorter: undefined,
         cellStyle: undefined,
-        searchable: true,
-        cardVisible: true
+        searchable: true
     };
 
     BootstrapTable.EVENTS = {
@@ -338,12 +321,10 @@
         this.initTable();
         this.initHeader();
         this.initData();
-        this.initFooter();
         this.initToolbar();
         this.initPagination();
         this.initBody();
         this.initServer();
-        this.initKeyEvents();
     };
 
     BootstrapTable.prototype.initContainer = function () {
@@ -351,14 +332,14 @@
             '<div class="bootstrap-table">',
             '<div class="fixed-table-toolbar"></div>',
             '<div class="fixed-table-container">',
+            '<div class="fixed-table-pagination pagination-top"></div><div class="clearfix"></div> ',
             '<div class="fixed-table-header"><table></table></div>',
             '<div class="fixed-table-body">',
             '<div class="fixed-table-loading">',
             this.options.formatLoadingMessage(),
             '</div>',
             '</div>',
-            '<div class="fixed-table-footer"><table><tr></tr></table></div>',
-            '<div class="fixed-table-pagination"></div>',
+            '<div class="fixed-table-pagination  pagination-bottom"></div>',
             '</div>',
             '</div>'].join(''));
 
@@ -454,10 +435,6 @@
                 return;
             }
 
-            if (that.options.cardView && (!column.cardVisible)) {
-                return;
-            }
-
             halign = sprintf('text-align: %s; ', column.halign ? column.halign : column.align);
             align = sprintf('text-align: %s; ', column.align);
             style = sprintf('vertical-align: %s; ', column.valign);
@@ -523,7 +500,7 @@
         } else {
             this.$header.show();
             this.$container.find('.fixed-table-header').show();
-            this.$loading.css('top', cellHeight + 'px');
+            this.$loading.css('top', '37px');
         }
 
         this.$selectAll = this.$header.find('[name="btSelectAll"]');
@@ -533,82 +510,6 @@
                 that[checked ? 'checkAll' : 'uncheckAll']();
             });
     };
-
-    BootstrapTable.prototype.initFooter = function () {
-        this.$footer =  this.$container.find('.fixed-table-footer');
-        if (!this.options.showFooter || this.options.cardView) {
-            this.$footer.hide();
-        } else {
-            this.$footer.show();
-        }
-    };
-
-    BootstrapTable.prototype.resetFooter = function () {
-        var bt   = this,
-            data = bt.getData(),
-            html = [];
-
-        if (!this.options.showFooter || this.options.cardView) { //do nothing
-            return;
-        }
-
-        $.each(bt.options.columns, function (i, column) {
-            var falign = '', // footer align style
-                style  = '',
-                class_ = sprintf(' class="%s"', column['class']);
-
-            if (!column.visible) {
-                return;
-            }
-
-            if (that.options.cardView && (!column.cardVisible)) {
-                return;
-            }
-
-            falign = sprintf('text-align: %s; ', column.falign ? column.falign : column.align);
-            style = sprintf('vertical-align: %s; ', column.valign);
-
-            html.push('<td', class_, sprintf(' style="%s"', falign + style), '>');
-
-
-            html.push(calculateObjectValue(column, column.footerFormatter, [data], '&nbsp;') || '&nbsp;');
-            html.push('</td>');
-        });
-
-        bt.$footer.find('tr').html(html.join(''));
-        clearTimeout(bt.timeoutFooter_);
-        bt.timeoutFooter_ = setTimeout($.proxy(bt.fitFooter, bt), bt.$el.is(':hidden') ? 100: 0);
-        return;
-    };
-
-    BootstrapTable.prototype.fitFooter = function () {
-        var bt = this,
-            $fixedBody,
-            $footerTd,
-            elWidth,
-            scrollWidth;
-        clearTimeout(bt.timeoutFooter_);
-        if (bt.$el.is(':hidden')) {
-            bt.timeoutFooter_ = setTimeout($.proxy(bt.fitFooter, bt), 100);
-            return;
-        }
-
-        $fixedBody  = bt.$container.find('.fixed-table-body');
-        elWidth     = bt.$el.css('width');
-        scrollWidth = elWidth > $fixedBody.width() ? getScrollBarWidth() : 0;
-
-        bt.$footer.css({
-            'margin-right': scrollWidth
-        }).find('table').css('width', elWidth)
-            .attr('class', bt.$el.attr('class'));
-
-        $footerTd = bt.$footer.find('td');
-
-        $fixedBody.find('tbody tr:first-child:not(.no-records-found) > td').each(function(i) {
-            $footerTd.eq(i).outerWidth($(this).outerWidth());
-        });
-    };
-
 
     /**
      * @param data
@@ -770,11 +671,6 @@
                 if (column.radio || column.checkbox) {
                     return;
                 }
-
-                if (that.options.cardView && (!column.cardVisible)) {
-                    return;
-                }
-
                 var checked = column.visible ? ' checked="checked"' : '';
 
                 if (column.switchable) {
@@ -810,7 +706,6 @@
                 .off('click').on('click', function () {
                     that.options.cardView = !that.options.cardView;
                     that.initHeader();
-                    that.initToolbar();
                     that.initBody();
                 });
         }
@@ -849,14 +744,6 @@
                     that.onSearch(event);
                 }, that.options.searchTimeOut);
             });
-
-            if (this.options.searchText !== '') {
-                $search.val(this.options.searchText);
-                clearTimeout(timeoutId); // doesn't matter if it's 0
-                timeoutId = setTimeout(function () {
-                    $search.trigger('keyup');
-                }, that.options.searchTimeOut);
-            }
         }
     };
 
@@ -931,7 +818,6 @@
 
         var that = this,
             html = [],
-            $allSelected = false,
             i, from, to,
             $pageList,
             $first, $pre,
@@ -945,13 +831,7 @@
 
         this.totalPages = 0;
         if (this.options.totalRows) {
-            if (this.options.pageSize === this.options.formatAllRows()) {
-                this.options.pageSize = this.options.totalRows;
-                $allSelected = true;
-            }
-
             this.totalPages = ~~((this.options.totalRows - 1) / this.options.pageSize) + 1;
-
             this.options.totalPages = this.totalPages;
         }
         if (this.totalPages > 0 && this.options.pageNumber > this.totalPages) {
@@ -964,19 +844,21 @@
             this.pageTo = this.options.totalRows;
         }
 
-        html.push(
-            '<div class="pull-' + this.options.paginationDetailHAlign + ' pagination-detail">',
+       html.push(
+            '<div class="pull-left pagination-detail">',
             '<span class="pagination-info">',
-            this.options.formatShowingRows(this.pageFrom, this.pageTo, this.options.totalRows),
+         //   this.options.formatShowingRows(this.pageFrom, this.pageTo, this.options.totalRows),
+           '検索結果 ' + this.options.totalRows + '件',
             '</span>');
 
+/*
         html.push('<span class="page-list">');
 
         var pageNumber = [
                 '<span class="btn-group dropup">',
                 '<button type="button" class="btn btn-default ' + (this.options.iconSize === undefined ? '' : ' btn-' + this.options.iconSize) + ' dropdown-toggle" data-toggle="dropdown">',
                 '<span class="page-size">',
-                $allSelected ? this.options.formatAllRows() : this.options.pageSize,
+                this.options.pageSize,
                 '</span>',
                 ' <span class="caret"></span>',
                 '</button>',
@@ -988,19 +870,14 @@
 
             pageList = [];
             $.each(list, function (i, value) {
-                pageList.push(value.toUpperCase() === that.options.formatAllRows().toUpperCase() ?
-                                that.options.formatAllRows() : +value);
+                pageList.push(+value);
             });
         }
 
+
         $.each(pageList, function (i, page) {
             if (!that.options.smartDisplay || i === 0 || pageList[i - 1] <= that.options.totalRows) {
-                var active;
-                if ($allSelected) {
-                    active = page === that.options.formatAllRows() ? ' class="active"' : '';
-                } else{
-                    active = page === that.options.pageSize ? ' class="active"' : '';
-                }
+                var active = page === that.options.pageSize ? ' class="active"' : '';
                 pageNumber.push(sprintf('<li%s><a href="javascript:void(0)">%s</a></li>', active, page));
             }
         });
@@ -1008,9 +885,9 @@
 
         html.push(this.options.formatRecordsPerPage(pageNumber.join('')));
         html.push('</span>');
-
+*/
         html.push('</div>',
-            '<div class="pull-' + this.options.paginationHAlign + ' pagination">',
+            '<div class="pull-right pagination">',
             '<ul class="pagination' + (this.options.iconSize === undefined ? '' : ' pagination-' + this.options.iconSize) + '">',
             '<li class="page-first"><a href="javascript:void(0)">&lt;&lt;</a></li>',
             '<li class="page-pre"><a href="javascript:void(0)">&lt;</a></li>');
@@ -1030,6 +907,7 @@
                 from = to - 4;
             }
         }
+
         for (i = from; i <= to; i++) {
             html.push('<li class="page-number' + (i === this.options.pageNumber ? ' active' : '') + '">',
                 '<a href="javascript:void(0)">', i, '</a>',
@@ -1063,15 +941,12 @@
             if (this.totalPages <= 1) {
                 this.$pagination.find('div.pagination').hide();
             }
-            if (pageList.length < 2 || this.options.totalRows <= pageList[0]) {
+            if (this.options.pageList.length < 2 || this.options.totalRows <= this.options.pageList[0]) {
                 this.$pagination.find('span.page-list').hide();
             }
 
             // when data is empty, hide the pagination
             this.$pagination[this.getData().length ? 'show' : 'hide']();
-        }
-        if ($allSelected) {
-            this.options.pageSize = this.options.formatAllRows();
         }
         $pageList.off('click').on('click', $.proxy(this.onPageListChange, this));
         $first.off('click').on('click', $.proxy(this.onPageFirst, this));
@@ -1105,8 +980,7 @@
         var $this = $(event.currentTarget);
 
         $this.parent().addClass('active').siblings().removeClass('active');
-        this.options.pageSize = $this.text().toUpperCase() === this.options.formatAllRows().toUpperCase() ?
-                                    this.options.formatAllRows() : +$this.text();
+        this.options.pageSize = +$this.text();
         this.$toolbar.find('.page-size').text(this.options.pageSize);
         this.updatePagination(event);
     };
@@ -1159,8 +1033,7 @@
         }
 
         for (var i = this.pageFrom - 1; i < this.pageTo; i++) {
-            var key,
-                item = data[i],
+            var item = data[i],
                 style = {},
                 csses = [],
                 attributes = {},
@@ -1169,7 +1042,7 @@
             style = calculateObjectValue(this.options, this.options.rowStyle, [item, i], style);
 
             if (style && style.css) {
-                for (key in style.css) {
+                for (var key in style.css) {
                     csses.push(key + ': ' + style.css[key]);
                 }
             }
@@ -1178,7 +1051,7 @@
                 this.options.rowAttributes, [item, i], attributes);
 
             if (attributes) {
-                for (key in attributes) {
+                for (var key in attributes) {
                     htmlAttributes.push(sprintf('%s="%s"', key, escapeHTML(attributes[key])));
                 }
             }
@@ -1374,7 +1247,7 @@
         var that = this,
             data = {},
             params = {
-                pageSize: this.options.pageSize === this.options.formatAllRows() ? this.options.totalRows : this.options.pageSize,
+                pageSize: this.options.pageSize,
                 pageNumber: this.options.pageNumber,
                 searchText: this.searchText,
                 sortName: this.options.sortName,
@@ -1392,9 +1265,8 @@
                 order: params.sortOrder
             };
             if (this.options.pagination) {
-                params.limit = this.options.pageSize === this.options.formatAllRows() ? this.options.totalRows : this.options.pageSize;
-                params.offset = (this.options.pageSize === this.options.formatAllRows() ? this.options.totalRows : this.options.pageSize)
-                                * (this.options.pageNumber - 1);
+                params.limit = this.options.pageSize;
+                params.offset = this.options.pageSize * (this.options.pageNumber - 1);
             }
         }
         data = calculateObjectValue(this.options, this.options.queryParams, [params], data);
@@ -1435,28 +1307,6 @@
         }));
     };
 
-    BootstrapTable.prototype.initKeyEvents = function () {
-      if (this.options.keyEvents) {
-          var that = this;
-          $(document).off('keypress').on('keypress', function (e) {
-              if (!that.options.search) {
-                  return;
-              }
-
-              switch (e.keyCode) {
-                  case 115://s
-                  case 83://S
-                      var $search = that.$toolbar.find('.search input');
-                      if(document.activeElement === $search.get(0)){
-                          return true;
-                      }
-                      $search.focus();
-                      return false;
-              }
-          });
-      }
-    };
-
     BootstrapTable.prototype.getCaretHtml = function () {
         return ['<span class="order' + (this.options.sortOrder === 'desc' ? '' : ' dropup') + '">',
             '<span class="caret" style="margin: 10px 5px;"></span>',
@@ -1464,10 +1314,44 @@
     };
 
     BootstrapTable.prototype.updateSelected = function () {
+
+        var selectedSize = this.$selectItem.filter(':enabled').filter(':checked').length;
+
         var checkAll = this.$selectItem.filter(':enabled').length ===
             this.$selectItem.filter(':enabled').filter(':checked').length;
 
         this.$selectAll.add(this.$selectAll_).prop('checked', checkAll);
+
+        /*
+        * *******************************************
+        * footer checkbox + indeterminate state code START
+        * *******************************************
+        */
+
+        if(checkAll){
+            if(selectedSize == 0){
+                $(".footer-checkbox").prop('checked', false);
+            }else{
+                this.$selectAll.prop('indeterminate', false);
+                $(".footer-checkbox").prop('indeterminate', false);
+                $(".footer-checkbox").prop('checked', true);
+            }
+        }else{
+            if(selectedSize != 0){
+                this.$selectAll.prop('indeterminate', true);
+                $(".footer-checkbox").prop('indeterminate', true);
+            }else{
+                this.$selectAll.prop('indeterminate', false);
+                $(".footer-checkbox").prop('indeterminate', false);
+                $(".footer-checkbox").prop('checked', false);
+            }
+        }
+
+        /*
+         * *******************************************
+         * footer checkbox + indeterminate state code END
+         * *******************************************
+         */
 
         this.$selectItem.each(function () {
             $(this).parents('tr')[$(this).prop('checked') ? 'addClass' : 'removeClass']('selected');
@@ -1504,50 +1388,49 @@
     };
 
     BootstrapTable.prototype.resetHeader = function () {
-        this.$el.css('margin-top', -this.$header.height());
-        // fix #61: the hidden table reset header bug.
-        // fix bug: get $el.css('width') error sometime (height = 500)
-        clearTimeout(this.timeoutId_);
-        this.timeoutId_ = setTimeout($.proxy(this.fitHeader, this), this.$el.is(':hidden') ? 100 : 0);
-        return;
-    };
-
-    BootstrapTable.prototype.fitHeader = function () {
         var that = this,
-            $fixedHeader,
-            $fixedBody,
-            scrollWidth;
+            $fixedHeader = this.$container.find('.fixed-table-header'),
+            $fixedBody = this.$container.find('.fixed-table-body'),
+            scrollWidth = this.$el.width() > $fixedBody.width() ? getScrollBarWidth() : 0;
 
-        if (that.$el.is(':hidden')) {
-            that.timeoutFooter_ = setTimeout($.proxy(that.fitHeader, that), 100);
+        // fix #61: the hidden table reset header bug.
+        if (this.$el.is(':hidden')) {
+            clearTimeout(this.timeoutId_); // doesn't matter if it's 0
+            this.timeoutId_ = setTimeout($.proxy(this.resetHeader, this), 100); // 100ms
             return;
         }
-        $fixedHeader = that.$container.find('.fixed-table-header'),
-        $fixedBody = that.$container.find('.fixed-table-body'),
-        scrollWidth = that.$el.width() > $fixedBody.width() ? getScrollBarWidth() : 0;
 
-        that.$header_ = that.$header.clone(true, true);
-        that.$selectAll_ = that.$header_.find('[name="btSelectAll"]');
-        $fixedHeader.css({
-            'margin-right': scrollWidth
-        }).find('table').css('width', that.$el.css('width'))
-            .html('').attr('class', that.$el.attr('class'))
-            .append(that.$header_);
+        this.$header_ = this.$header.clone(true, true);
+        this.$selectAll_ = this.$header_.find('[name="btSelectAll"]');
 
-        // fix bug: $.data() is not working as expected after $.append()
-        that.$header.find('th').each(function (i) {
-            that.$header_.find('th').eq(i).data($(this).data());
-        });
+        // fix bug: get $el.css('width') error sometime (height = 500)
+        setTimeout(function () {
+            $fixedHeader.css({
+                'height': '37px',
+                'border-bottom': '1px solid #dddddd',
+                'margin-right': scrollWidth
+            }).find('table').css('width', that.$el.css('width'))
+                .html('').attr('class', that.$el.attr('class'))
+                .append(that.$header_);
 
-        that.$body.find('tr:first-child:not(.no-records-found) > *').each(function (i) {
-            that.$header_.find('div.fht-cell').eq(i).width($(this).innerWidth());
+            // fix bug: $.data() is not working as expected after $.append()
+            that.$header.find('th').each(function (i) {
+                that.$header_.find('th').eq(i).data($(this).data());
+            });
+
+            that.$body.find('tr:first-child:not(.no-records-found) > *').each(function (i) {
+                that.$header_.find('div.fht-cell').eq(i).width($(this).innerWidth());
+            });
+
+            that.$el.css('margin-top', -that.$header.height());
+
+            // horizontal scroll event
+            $fixedBody.off('scroll').on('scroll', function () {
+                $fixedHeader.scrollLeft($(this).scrollLeft());
+            });
+
+            that.trigger('post-header');
         });
-        // horizontal scroll event
-        // TODO: it's probably better improving the layout than binding to scroll event
-        $fixedBody.off('scroll').on('scroll', function () {
-            $fixedHeader.scrollLeft($(this).scrollLeft());
-        });
-        that.trigger('post-header');
     };
 
     BootstrapTable.prototype.toggleColumn = function (index, checked, needUpdate) {
@@ -1573,22 +1456,12 @@
         }
     };
 
-    BootstrapTable.prototype.toggleRow = function (index, visible) {
-        if (index === -1) {
-           return;
-        }
-
-        this.$selectItem.filter(sprintf('[data-index="%s"]', index))
-            .parents('tr')[visible ? 'show' : 'hide']();
-     };
-
     // PUBLIC FUNCTION DEFINITION
     // =======================
 
     BootstrapTable.prototype.resetView = function (params) {
         var that = this,
-            padding = 0,
-            $tableContainer = that.$container.find('.fixed-table-container');
+            header = this.header;
 
         if (params && params.height) {
             this.options.height = params.height;
@@ -1602,31 +1475,25 @@
                 paginationHeight = +this.$pagination.children().outerHeight(true),
                 height = this.options.height - toolbarHeight - paginationHeight;
 
-            $tableContainer.css('height', height + 'px');
+            this.$container.find('.fixed-table-container').css('height', height + 'px');
         }
 
         if (this.options.cardView) {
             // remove the element css
             that.$el.css('margin-top', '0');
-            $tableContainer.css('padding-bottom', '0');
+            that.$container.find('.fixed-table-container').css('padding-bottom', '0');
             return;
         }
 
         if (this.options.showHeader && this.options.height) {
             this.resetHeader();
-            padding += cellHeight;
         } else {
             this.trigger('post-header');
         }
 
-        if (this.options.showFooter) {
-            this.resetFooter();
-            if (this.options.height) {
-                padding += cellHeight;
-            }
+        if (this.options.height && this.options.showHeader) {
+            this.$container.find('.fixed-table-container').css('padding-bottom', '37px');
         }
-
-        $tableContainer.css('padding-bottom', padding + 'px');
     };
 
     BootstrapTable.prototype.getData = function () {
@@ -1708,14 +1575,6 @@
         }
         $.extend(this.data[params.index], params.row);
         this.initBody(true);
-    };
-
-    BootstrapTable.prototype.showRow = function (index) {
-        this.toggleRow(index, true);
-    };
-
-    BootstrapTable.prototype.hideRow = function (index) {
-        this.toggleRow(index, false);
     };
 
     BootstrapTable.prototype.mergeCells = function (options) {
@@ -1902,7 +1761,6 @@
     BootstrapTable.prototype.toggleView = function () {
         this.options.cardView = !this.options.cardView;
         this.initHeader();
-        this.initToolbar();
         this.initBody();
     };
 
@@ -1914,7 +1772,6 @@
         'getSelections', 'getData',
         'load', 'append', 'prepend', 'remove',
         'insertRow', 'updateRow',
-        'showRow', 'hideRow',
         'mergeCells',
         'checkAll', 'uncheckAll',
         'check', 'uncheck',
